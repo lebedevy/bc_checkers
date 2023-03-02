@@ -10,13 +10,7 @@ contract CounterTest is Test {
 
     function setUp() public {
         checkers = new Checkers();
-        // checkers.setNumber(0);
     }
-
-    // function testIncrement() public {
-    //     checkers.increment();
-    //     assertEq(checkers.board(), 22636617860888976035227669065);
-    // }
 
     function testNumber() public {
         // test that the initial board is set up correctly
@@ -44,24 +38,16 @@ contract CounterTest is Test {
         checkers.move(8, 12);
         assertEq(checkers.board(), 22636617860888976103930368585);
         assertEq(checkers.turn(), 2);
+        checkers.move(21, 17);
+        assertEq(checkers.turn(), 1);
     }
 
-    function testOverflow() public {
-        uint8 from = 8;
-        uint8 to = 19;
+    function testMoveAdjecentButWrongRow() public {
+        vm.expectRevert("Invalid destination square");
+        checkers.move(11, 16);
+    }
 
-        uint8 t1 = to / 8;
-        uint8 f1 = from / 8;
-
-        uint8 one = 1;
-        uint8 two = 2;
-
-        unchecked {
-            console.log(one - two);
-            assertEq(one - two, 255);
-        }
-
-        // assertEq(f1, 1);
-        // assertEq(t1, 2);
+    function testCanEat() public {
+        assertEq(checkers.checkIfCanEat(), true);
     }
 }
