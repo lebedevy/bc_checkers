@@ -9,8 +9,8 @@ contract Checkers {
     constructor() {
         // This represents the initial board set up, when interpreted as bits
         // 3 bits per square, 32 squares, 32 * 3 = 96 bits
-        // board = 22636617860888976035227669065;
-        board = 19807040628566647898095222784;
+        board = 22636617860888976035227669065;
+        // board = 19807040628566647898095222784; // move test
         turn = 1;
     }
 
@@ -49,53 +49,53 @@ contract Checkers {
         // check that the destination square is empty
         require(getPiece(to) == 0, "Invalid destination: square occupied");
 
-        // Using unchecked to allow underflow
-        unchecked {
-            // Expectation:
-            // The result should be either 4 or 5 for a move or 7 or 9 for a jump
-            // Or the same nums as above for negative when moving up the board
-            // TODO: Deteremine if I even need the rollover, or can just normalize (direction can be determined using to/from)
-            // (Due to rollover, negative nums will appear as either , in order)
-            // since we are subtracring uint8 from another uint8, rollover can occur at most once
-            // therefore there should only be one path to 255 (aka -1)
-            // NOTE: Relying on underflow and int division truncation
-            // TODO: do I need to specify that 8 is a uint8 to ensure that the underflow occurs as expected?
-            uint8 squareDifference = from > to ? from - to : to - from;
-            uint8 rowDifference = from / 4 - to / 4;
+        // if not a king, validate direction
+        if (fromPiece & 4 != 4) {
+            // from > to: moving down the board - must be red
+            // to > from: moving up the board - must be white
+            require(
+                from > to ? fromPiece & 2 == 2 : fromPiece & 1 == 1,
+                "Invalid move direction"
+            );
+        }
 
-            // if not a king, validate direction
-            if (fromPiece & 4 != 4) {
-                if (from > to) {
-                    // moving down the board - must be red
-                    require(fromPiece & 2 == 2, "Invalid move direction");
-                } else {
-                    // moving up the board - must be white
-                    require(fromPiece & 1 == 1, "Invalid move direction");
-                }
-            }
+        // if we normalize the cell index to include the white cells,
+        // the difference between cells for a legal move will always be 7 or 9 and 14 or 18 for a jump
+        uint8 fromIndex = getNormalizedIndex(from);
+        uint8 toIndex = getNormalizedIndex(to);
 
-            if (
-                (squareDifference == 4 || squareDifference == 5) &&
-                (rowDifference == 1 || rowDifference == 255)
-            ) {
-                // destination is valid
-                // Last check:
-                // make sure that there are no jumps avaliable to the party making the move;
-                // if jumps are avaliable, then the move is invalid
-                require(
-                    checkIfCanEat() == false,
-                    "A capture is avaliable; must capture"
-                );
-            } else if (
-                (squareDifference == 7 || squareDifference == 9) &&
-                (rowDifference == 2 || rowDifference == 254)
-            ) {
-                // Eat; must move two rows over
-                // check that the piece being jump over is occupied by enemy
-            } else {
-                // invalid move
-                revert("Invalid destination square");
-            }
+        uint8 squareDifference;
+        uint8 rowDifference;
+
+        if (fromIndex > toIndex) {
+            squareDifference = fromIndex - toIndex;
+            rowDifference = from / 4 - to / 4;
+        } else {
+            squareDifference = toIndex - fromIndex;
+            rowDifference = to / 4 - from / 4;
+        }
+
+        if (
+            rowDifference == 1 &&
+            (squareDifference == 7 || squareDifference == 9)
+        ) {
+            // destination is valid
+            // Last check:
+            // make sure that there are no jumps avaliable to the party making the move;
+            // if jumps are avaliable, then the move is invalid
+            require(
+                checkIfCanEat() == false,
+                "A capture is avaliable; must capture"
+            );
+        } else if (
+            rowDifference == 2 &&
+            (squareDifference == 14 || squareDifference == 18)
+        ) {
+            // Capture: must move two rows over
+            // check that the piece being jump over is occupied by enemy
+        } else {
+            // invalid move
+            revert("Invalid destination square");
         }
 
         return fromPiece;
@@ -158,7 +158,8 @@ contract Checkers {
 
                     if (left == 32) {
                         status = status | 2;
-                    } else if (left == 0) {
+                    } else if (left == 0 && !(leftAlignedRow && column == 3)) {
+                        // if left is empty, and it is not an edge piece on the left
                         status = status | 8;
                     }
 
@@ -242,5 +243,12 @@ contract Checkers {
         uint8 piece
     ) private pure returns (uint96) {
         return boardCopy ^ (uint96(piece) << (position * 3));
+    }
+
+    function getNormalizedIndex(uint8 index) private pure returns (uint8) {
+        // there are double the cells per row when we include white cells: (index % 4)
+        // if we are in an even row, the white cell comes first so we have to add it to the index: (index / 4 % 2 ^ 1)
+        // and we have to add all the white cells from previous rows: (index / 4 * 4)
+        return index + (index % 4) + ((index / 4) % 2 ^ 1) + ((index / 4) * 4);
     }
 }
