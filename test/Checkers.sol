@@ -48,6 +48,6 @@ contract CounterTest is Test {
     }
 
     function testCanEat() public {
-        assertEq(checkers.checkIfCanEat(), true);
+        assertEq(checkers.checkIfCanEat(), false);
     }
 }

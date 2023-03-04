@@ -4,13 +4,13 @@ pragma solidity ^0.8.13;
 contract Checkers {
     uint96 public board;
     uint8 public turn;
-    uint8 private STATUS_LENGTH = 6;
+    uint8 private STATUS_LENGTH = 7;
 
     constructor() {
         // This represents the initial board set up, when interpreted as bits
         // 3 bits per square, 32 squares, 32 * 3 = 96 bits
         board = 22636617860888976035227669065;
-        // board = 19807040628566647898095222784; // move test
+        // board = 19807040628566647898095222784; // TODO: remove (test board)
         turn = 1;
     }
 
@@ -109,14 +109,14 @@ contract Checkers {
 
         // a uint24 stores the status of the previous row
         // Looking backwards, we can determine the status of the current row
-        // Status: 3 bits (4 black cells in a row: 3 * 4 = 12 bits required)
         // Statuses:
-        // 100000 (32) - own piece
-        // 010000 (16) - enemy piece
+        // 1000000 (64) - own piece - can't eat forward (need to know for blocking purpose)
+        // 0100000 (32) - own piece - can eat forward
+        // 0010000 (16) - enemy piece
         // see below for enemy piece statuses
 
-        uint24 previousRow = 0;
-        uint24 curRow = 0;
+        uint32 previousRow = 0;
+        uint32 curRow = 0;
 
         for (uint8 i = 0; i < 32; i++) {
             uint8 piece = getPiece(i);
@@ -131,32 +131,39 @@ contract Checkers {
 
             if (piece != 0) {
                 if (isTurn(piece)) {
-                    curRow = curRow | uint24(32 << (column * STATUS_LENGTH));
+                    bool isRed = piece & 2 == 2;
+                    bool isKing = piece & 4 == 4;
 
-                    // TODO: check scenario where we are at the edges
-                    // and you would jump off the board when you eat
+                    // add own piece - can only threaten subsequent pieces if is white or is king
+                    curRow =
+                        curRow |
+                        (uint32(isKing || !isRed ? 32 : 64) <<
+                            (column * STATUS_LENGTH));
 
-                    if (left & 16 == 16 && left & 8 == 8) {
-                        // if enemey in left cell, and back is open
-                        return true;
-                    }
+                    if (i > 7 && (isKing || isRed)) {
+                        // can only eat backwards when you are in the 3rd row or further, and the piece is king or red
+                        if (left & 16 == 16 && left & 8 == 8) {
+                            // if enemey in left cell, and back is open
+                            return true;
+                        }
 
-                    if (right & 16 == 16 && right & 4 == 4) {
-                        // if enemey in right cell, and back is open
-                        return true;
+                        if (right & 16 == 16 && right & 4 == 4) {
+                            // if enemey in right cell, and back is open
+                            return true;
+                        }
                     }
                 } else {
                     // Enemy status:
-                    // 010000  (16) - enemy piece
+                    // 0010000  (16) - enemy piece
                     // Enemy status:
-                    // 001000 (8) - Left - back empty
-                    // 000100 (4) - Right - back empty
-                    // 000010 (2) - Left - threatened
-                    // 000001 (1) - Right - threatened
+                    // 0001000 (8) - Left - back empty
+                    // 0000100 (4) - Right - back empty
+                    // 0000010 (2) - Left - threatened
+                    // 0000001 (1) - Right - threatened
 
                     uint24 status = 16; // enemy
 
-                    if (i < 3) {
+                    if (i > 3) {
                         // do not check behind if in the first column
 
                         if (left == 32) {
@@ -205,10 +212,10 @@ contract Checkers {
 
     function getNeighbours(
         bool leftAlignedRow,
-        uint24 previousRow,
+        uint32 previousRow,
         uint8 column
     ) public view returns (uint8, uint8) {
-        uint8 STATUS = 63;
+        uint8 STATUS = 127;
         uint8 equal = uint8((previousRow >> (column * STATUS_LENGTH)) & STATUS);
 
         if (leftAlignedRow) {
