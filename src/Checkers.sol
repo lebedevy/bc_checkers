@@ -156,17 +156,26 @@ contract Checkers {
 
                     uint24 status = 16; // enemy
 
-                    if (left == 32) {
-                        status = status | 2;
-                    } else if (left == 0 && !(leftAlignedRow && column == 3)) {
-                        // if left is empty, and it is not an edge piece on the left
-                        status = status | 8;
-                    }
+                    if (i < 3) {
+                        // do not check behind if in the first column
 
-                    if (right == 32) {
-                        status = status | 1;
-                    } else if (right == 0) {
-                        status = status | 4;
+                        if (left == 32) {
+                            status = status | 2;
+                        } else if (
+                            left == 0 && !(leftAlignedRow && column == 3)
+                        ) {
+                            // if left is empty, and it is not an edge piece on the left
+                            status = status | 8;
+                        }
+
+                        if (right == 32) {
+                            status = status | 1;
+                        } else if (
+                            right == 0 && !(!leftAlignedRow && column == 0)
+                        ) {
+                            // if right is empty, and not an edge square on the right
+                            status = status | 4;
+                        }
                     }
 
                     curRow = curRow | (status << (column * STATUS_LENGTH));
