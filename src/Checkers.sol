@@ -10,7 +10,6 @@ contract Checkers {
         // This represents the initial board set up, when interpreted as bits
         // 3 bits per square, 32 squares, 32 * 3 = 96 bits
         board = 22636617860888976035227669065;
-        // board = 19807040628566647898095222784; // TODO: remove (test board)
         turn = 1;
     }
 
@@ -22,21 +21,9 @@ contract Checkers {
         board++;
     }
 
-    function move(uint8 from, uint8 to) public {
-        // TODO: make it so that only one instance of a contract can run at a time
-        uint8 piece = isTransitionValid(from, to);
-        uint96 updated = setPiece(board, from, piece);
-        board = setPiece(updated, to, piece);
-        turn ^= 3;
-    }
-
     // TODO: see if bit-compaction can imporve performance here
     // combine two 96 inputs into a single 192 bit input
-    function isTransitionValid(uint8 from, uint8 to)
-        private
-        view
-        returns (uint8)
-    {
+    function move(uint8 from, uint8 to) public {
         // since we are using uint, it is guranteed to be >= 0
         require(from < 31 || to < 31, "Move parameters out of bounds");
 
@@ -67,6 +54,8 @@ contract Checkers {
         uint8 squareDifference;
         uint8 rowDifference;
 
+        uint96 updatedBoard = board;
+
         if (fromIndex > toIndex) {
             squareDifference = fromIndex - toIndex;
             rowDifference = from / 4 - to / 4;
@@ -92,13 +81,30 @@ contract Checkers {
             (squareDifference == 14 || squareDifference == 18)
         ) {
             // Capture: must move two rows over
-            // check that the piece being jump over is occupied by enemy
+            uint8 squareIndex = getDenormalizedIndex((fromIndex + toIndex) / 2);
+            uint8 squareJumpedOver = getPiece(squareIndex);
+
+            // Ensure that the square being jump over is not empty and occupied by an enemy piece
+            require(
+                isTurn(squareJumpedOver) == false && squareJumpedOver != 0,
+                "Invalid capture: no enemy piece"
+            );
+
+            // at this point move is valid; begin updating board
+            // set square being jumped over to empty
+            updatedBoard = setPiece(
+                updatedBoard,
+                squareIndex,
+                squareJumpedOver
+            );
         } else {
             // invalid move
             revert("Invalid destination square");
         }
 
-        return fromPiece;
+        updatedBoard = setPiece(updatedBoard, from, fromPiece);
+        board = setPiece(updatedBoard, to, fromPiece);
+        turn ^= 3;
     }
 
     function checkIfCanEat() public view returns (bool) {
@@ -161,7 +167,7 @@ contract Checkers {
                     // 0000010 (2) - Left - threatened
                     // 0000001 (1) - Right - threatened
 
-                    uint24 status = 16; // enemy
+                    uint32 status = 16; // enemy
 
                     if (i > 3) {
                         // do not check behind if in the first column
@@ -266,5 +272,16 @@ contract Checkers {
         // if we are in an even row, the white cell comes first so we have to add it to the index: (index / 4 % 2 ^ 1)
         // and we have to add all the white cells from previous rows: (index / 4 * 4)
         return index + (index % 4) + ((index / 4) % 2 ^ 1) + ((index / 4) * 4);
+    }
+
+    function getDenormalizedIndex(uint8 index) private pure returns (uint8) {
+        // we have to remove all the white cells from previous rows: (index / 8 * 4)
+        // if we are in an even row, the white cell comes first so we have to remove it from the index: (index / 4 % 2 ^ 1)
+        // there are double the cells per row when we include white cells: ((index % 8) / 2)
+        return
+            index -
+            ((index / 8) * 4) -
+            ((index / 8) % 2 ^ 1) -
+            ((index % 8) / 2);
     }
 }

@@ -42,12 +42,17 @@ contract CounterTest is Test {
         assertEq(checkers.turn(), 1);
     }
 
+    function testMove2() public {
+        vm.expectRevert("Invalid destination square");
+        checkers.move(18, 14);
+    }
+
     function testMoveAdjecentButWrongRow() public {
         vm.expectRevert("Invalid destination square");
         checkers.move(11, 16);
     }
 
     function testCanEat() public {
-        assertEq(checkers.checkIfCanEat(), false);
+        assertEq(checkers.checkIfCanEat(), true);
     }
 }
