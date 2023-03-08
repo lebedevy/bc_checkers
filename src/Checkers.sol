@@ -92,17 +92,19 @@ contract Checkers {
 
             // at this point move is valid; begin updating board
             // set square being jumped over to empty
-            updatedBoard = setPiece(
-                updatedBoard,
-                squareIndex,
-                squareJumpedOver
-            );
+            updatedBoard = setPiece(updatedBoard, squareIndex, 0);
         } else {
             // invalid move
             revert("Invalid destination square");
         }
 
-        updatedBoard = setPiece(updatedBoard, from, fromPiece);
+        updatedBoard = setPiece(updatedBoard, from, 0);
+
+        // if the piece is in the last row, it becomes a king
+        if ((turn == 1 && to / 4 == 7) || (turn == 2 && to / 4 == 0)) {
+            fromPiece = fromPiece | 4;
+        }
+
         board = setPiece(updatedBoard, to, fromPiece);
         turn ^= 3;
     }
@@ -264,7 +266,11 @@ contract Checkers {
         uint8 position,
         uint8 piece
     ) private pure returns (uint96) {
-        return boardCopy ^ (uint96(piece) << (position * 3));
+        // TODO: is it cheaper to re-calculate position, or to store it in a variable?
+        // set bits to 0 at index
+        uint96 bc = boardCopy & ~(uint96(7) << (position * 3));
+        // set bits to piece at index
+        return bc ^ (uint96(piece) << (position * 3));
     }
 
     function getNormalizedIndex(uint8 index) private pure returns (uint8) {
