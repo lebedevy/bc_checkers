@@ -5,6 +5,8 @@ contract Checkers {
     uint96 public board;
     uint8 public turn;
     uint8 private STATUS_LENGTH = 7;
+    address public player1;
+    address public player2;
 
     constructor() {
         // This represents the initial board set up, when interpreted as bits
@@ -17,13 +19,34 @@ contract Checkers {
     //     board = newNumber;
     // }
 
-    function increment() public {
-        board++;
+    function register(uint8 position) public {
+        if (position == 1) {
+            require(player1 == address(0), "Player 1 already taken");
+            require(player2 != msg.sender, "Already registered as player 2");
+            player1 = msg.sender;
+        } else if (position == 2) {
+            require(player2 == address(0), "Player 2 already taken");
+            require(player1 != msg.sender, "Already registered as player 1");
+            player2 = msg.sender;
+        } else {
+            revert("Invalid position");
+        }
     }
 
     // TODO: see if bit-compaction can imporve performance here
     // combine two 96 inputs into a single 192 bit input
     function move(uint8 from, uint8 to) public {
+        require(
+            player1 != address(0) && player2 != address(0),
+            "Two players must register for game to start"
+        );
+
+        if (turn == 1) {
+            require(msg.sender == player1, "Not your turn");
+        } else {
+            require(msg.sender == player2, "Not your turn");
+        }
+
         // since we are using uint, it is guranteed to be >= 0
         require(from < 31 || to < 31, "Move parameters out of bounds");
 
