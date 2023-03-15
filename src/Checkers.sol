@@ -42,9 +42,9 @@ contract Checkers {
         );
 
         if (turn == 1) {
-            require(msg.sender == player1, "Not your turn");
+            require(msg.sender == player1, "Invalid player");
         } else {
-            require(msg.sender == player2, "Not your turn");
+            require(msg.sender == player2, "Invalid player");
         }
 
         // since we are using uint, it is guranteed to be >= 0
