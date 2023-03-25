@@ -55,4 +55,8 @@ contract CounterTest is Test {
     function testCanEat() public {
         assertEq(checkers.checkIfCanEat(), true);
     }
+
+    function testIsGameOver() public {
+        assertEq(checkers.isGameOver(), false);
+    }
 }

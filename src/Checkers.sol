@@ -15,6 +15,13 @@ contract Checkers {
         turn = 1;
     }
 
+    function resetBoard() private {
+        board = 22636617860888976035227669065;
+        turn = 1;
+        player1 = address(0);
+        player2 = address(0);
+    }
+
     // function setNumber(uint96 newNumber) public {
     //     board = newNumber;
     // }
@@ -130,6 +137,45 @@ contract Checkers {
 
         board = setPiece(updatedBoard, to, fromPiece);
         turn ^= 3;
+
+        if (isGameOver()) {
+            // TODO: notify players of game over; frontend only task?
+            resetBoard();
+        }
+    }
+
+    function isGameOver() public view returns (bool) {
+        // Game is over when a) player has no pieces remaining b) player can't move
+
+        // 3 * 4 = 12 bits per row;
+        // player 1 pieces will always have 1 in the same position (001): 001001001001 (in binary)
+        uint96 firstPlayer = 585;
+        // player 2 pieces will always have 1 in the same position (010): 010010010010 (in binary)
+        uint96 secondPlayer = 1170;
+
+        bool hasFirstPlayer = false;
+        bool hasSecondPlayer = false;
+
+        for (uint8 i = 0; i < 8; i++) {
+            // check one row at a time; if no player pieces, the XOR will return 0
+            if (!hasFirstPlayer) {
+                hasFirstPlayer = (board & firstPlayer) > 0;
+            }
+
+            if (!hasSecondPlayer) {
+                hasSecondPlayer = (board & secondPlayer) > 0;
+            }
+
+            if (hasFirstPlayer && hasSecondPlayer) {
+                return false;
+            }
+
+            firstPlayer <<= 12;
+            secondPlayer <<= 12;
+        }
+
+        // TODO: scenario b: player can't move
+        return true;
     }
 
     function checkIfCanEat() public view returns (bool) {
